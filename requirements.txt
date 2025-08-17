@@ -13,3 +13,4 @@ gunicorn
 lxml
 duckdb
 pyarrow
+networkx
