@@ -65,3 +65,6 @@ venv.bak/
 
 # Logs
 *.log
+
+# Environment file
+.env

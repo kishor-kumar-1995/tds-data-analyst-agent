@@ -1,25 +1,29 @@
-from fastapi import FastAPI, UploadFile, File, Form
+from fastapi import FastAPI, UploadFile, File
 from fastapi.responses import JSONResponse
 from typing import List, Optional
 import httpx
 import re
+from dotenv import load_dotenv
+import os
 
-app = FastAPI(title="TDS Data Analyst Agent")
-
-OPENAI_API_KEY = "eyJhbGciOiJIUzI1NiJ9.eyJlbWFpbCI6IjIzZHMyMDAwMDE5QGRzLnN0dWR5LmlpdG0uYWMuaW4ifQ.NeKDKTxIsF0gcbK-g54HqCmp5GbIBrhu9JHQwa6Yr-Y"
+# Load environment variables
+load_dotenv()
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 OPENAI_BASE_URL = "https://aipipe.org/openrouter/v1"
 OPENAI_MODEL = "openai/gpt-3.5-turbo"
+
+app = FastAPI(title="TDS Data Analyst Agent")
 
 @app.post("/api/")
 async def analyze(
     questions_file: UploadFile = File(...),
-    other_files: Optional[List[UploadFile]] = File(None)
+    files: Optional[List[UploadFile]] = File(None)
 ):
     # Read questions.txt content
     questions_text = (await questions_file.read()).decode("utf-8")
 
-    # For demonstration, read filenames of other files (you can process them as needed)
-    other_filenames = [f.filename for f in (other_files or [])]
+    # List filenames of uploaded files
+    filenames = [f.filename for f in (files or [])]
 
     # Prepare prompt
     prompt = f"""
@@ -28,7 +32,7 @@ You are a helpful Data Analyst Agent.
 Task:
 {questions_text}
 
-If the task requires a plot, generate it using matplotlib and include the plot as a base64 encoded data URI string like "data:image/png;base64,....".
+If the task requires a plot, generate it using matplotlib and include the plot as a base64 encoded data URI string like "data:image/png;base64,...".
 
 Respond only in JSON format (array or object as appropriate).
 """
@@ -62,7 +66,7 @@ Respond only in JSON format (array or object as appropriate).
     # Extract references (URLs)
     references = re.findall(r"http[s]?://\S+", answer_text)
 
-    # Extract first base64 image URI if any (common pattern: data:image/png;base64,...)
+    # Extract first base64 image URI if any
     base64_match = re.search(r"(data:image\/[a-zA-Z]+;base64,[A-Za-z0-9+/=]+)", answer_text)
     chart_base64 = base64_match.group(1) if base64_match else None
 
@@ -70,9 +74,8 @@ Respond only in JSON format (array or object as appropriate).
         "answer": answer_text,
         "references": references,
         "chart_base64": chart_base64,
-        "other_files_received": other_filenames,  # just to confirm files received
+        "other_files_received": filenames,
     }
-
 
 @app.get("/")
 async def root():
